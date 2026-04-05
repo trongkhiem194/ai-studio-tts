@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AI Studio — Generate Speech</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1c1b22;
+  --sidebar-bg:#1c1b22;
+  --panel-bg:#28272f;
+  --center-bg:#1c1b22;
+  --border:#3a3844;
+  --text:#e3e2e6;
+  --text2:#adaab8;
+  --text3:#6e6b7a;
+  --accent:#8ab4f8;
+  --accent2:#c58af9;
+  --run:#4a9eff;
+  --run-hover:#6ab4ff;
+  --tag-bg:#2e2d36;
+  --sp1:#f9bb2d;
+  --sp2:#c58af9;
+  --radius:12px;
+  --radius-sm:8px;
+}
+html,body{height:100%;font-family:'Google Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+
+/* ─── LAYOUT ─── */
+.app{display:flex;height:100vh}
+
+/* ─── LEFT SIDEBAR ─── */
+.sidebar{width:220px;flex-shrink:0;display:flex;flex-direction:column;background:var(--sidebar-bg);border-right:1px solid var(--border);padding:12px 0}
+.sidebar-logo{display:flex;align-items:center;gap:8px;padding:8px 16px 16px;font-size:15px;font-weight:700;color:var(--text)}
+.sidebar-logo svg{width:22px;height:22px;flex-shrink:0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-radius:var(--radius-sm);margin:1px 8px;transition:background .15s}
+.nav-item:hover{background:#2e2d38;color:var(--text)}
+.nav-item.active{background:#3a2d6b;color:#d0baff}
+.nav-icon{font-size:16px;width:18px;text-align:center}
+.sidebar-divider{height:1px;background:var(--border);margin:8px 16px}
+.sidebar-label{font-size:11px;color:var(--text3);padding:6px 16px 2px;text-transform:uppercase;letter-spacing:.8px}
+.history-item{padding:7px 16px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .15s}
+.history-item:hover{color:var(--text)}
+.sidebar-bottom{margin-top:auto}
+.sidebar-bottom .nav-item{font-size:12px}
+
+/* ─── CENTER ─── */
+.center{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.center-header{display:flex;align-items:center;padding:0 16px;height:48px;border-bottom:1px solid var(--border);gap:4px}
+.tab{padding:6px 14px;font-size:13px;border-radius:20px;cursor:pointer;color:var(--text2);transition:all .15s;border:none;background:none}
+.tab:hover{color:var(--text);background:#2e2d38}
+.tab.active{background:#3a2d6b;color:#d0baff}
+.center-body{flex:1;overflow-y:auto;padding:20px 24px 80px}
+.style-instr{margin-bottom:20px}
+.style-instr label{font-size:12px;color:var(--text2);margin-bottom:6px;display:block}
+.style-input{width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font:14px 'Google Sans',sans-serif;padding:6px 0;outline:none;resize:none;line-height:1.6}
+.style-input::placeholder{color:var(--text3);font-style:italic}
+.style-input:focus{border-bottom-color:var(--accent)}
+
+/* Speaker bubble */
+.speaker-block{display:flex;gap:12px;margin-bottom:16px;align-items:flex-start}
+.sp-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px}
+.sp-dot.sp1{background:#4a3a00;color:var(--sp1);outline:2px solid var(--sp1)}
+.sp-dot.sp2{background:#3a1f5e;color:var(--sp2);outline:2px solid var(--sp2)}
+.sp-content{flex:1}
+.sp-label{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.sp-tag{font-size:10px;background:var(--tag-bg);border:1px solid var(--border);padding:1px 6px;border-radius:10px;color:var(--text3)}
+.sp-textarea{width:100%;background:var(--panel-bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font:14px 'Google Sans',sans-serif;padding:10px 12px;outline:none;resize:vertical;min-height:70px;line-height:1.7;transition:border-color .15s}
+.sp-textarea::placeholder{color:var(--text3)}
+.sp-textarea:focus{border-color:var(--accent)}
+.add-dialog-btn{display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px dashed var(--border);border-radius:var(--radius-sm);background:none;color:var(--text2);font:13px 'Google Sans',sans-serif;cursor:pointer;margin-top:4px;transition:all .15s;width:100%}
+.add-dialog-btn:hover{border-color:var(--accent);color:var(--accent);background:#1a2235}
+
+/* Single speaker */
+.single-block{background:var(--panel-bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.single-label{font-size:12px;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.main-textarea{width:100%;background:transparent;border:none;color:var(--text);font:15px 'Google Sans',sans-serif;outline:none;resize:none;min-height:220px;line-height:1.8}
+.main-textarea::placeholder{color:var(--text3)}
+.char-bar{display:flex;justify-content:flex-end;font-size:11px;color:var(--text3);margin-top:6px}
+
+/* Bottom templates */
+.center-footer{position:absolute;bottom:0;left:220px;right:360px;border-top:1px solid var(--border);background:var(--bg);padding:10px 24px;display:flex;gap:8px}
+.tpl-btn{display:flex;align-items:center;gap:6px;padding:7px 13px;background:var(--tag-bg);border:1px solid var(--border);border-radius:20px;font:12px 'Google Sans',sans-serif;color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap}
+.tpl-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ─── RIGHT PANEL ─── */
+.right{width:360px;flex-shrink:0;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;background:var(--sidebar-bg)}
+.right-model-info{padding:16px;border-bottom:1px solid var(--border)}
+.model-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
+.model-id{font-size:11px;color:var(--text3);font-family:'Google Sans Mono',monospace}
+.model-desc{font-size:12px;color:var(--text2);margin-top:8px;line-height:1.5}
+.right-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+.right-section-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.right-section-title span{color:var(--text3);font-weight:400;font-size:11px;cursor:pointer}
+
+/* Mode selector */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mode-card{border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 8px;cursor:pointer;text-align:center;transition:all .15s;background:var(--tag-bg)}
+.mode-card:hover{border-color:var(--accent2)}
+.mode-card.active{border-color:var(--accent2);background:#2a1f45}
+.mode-card .mode-icon{font-size:22px;margin-bottom:6px}
+.mode-card .mode-label{font-size:11px;color:var(--text2);line-height:1.4}
+.mode-card.active .mode-label{color:#d0baff}
+
+/* Settings rows */
+.setting-row{margin-bottom:12px}
+.setting-label{font-size:12px;color:var(--text2);margin-bottom:5px}
+select.r-select,input.r-input{width:100%;background:var(--tag-bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font:13px 'Google Sans',sans-serif;padding:8px 10px;outline:none;transition:border-color .15s;appearance:none;cursor:pointer}
+select.r-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath fill='%23adaab8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:calc(100% - 10px) center;padding-right:28px}
+select.r-select:focus,input.r-input:focus{border-color:var(--accent)}
+select.r-select option{background:#1c1b22}
+.sp-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sp-divider{margin:12px 0 14px;border:none;border-top:1px solid var(--border)}
+
+/* Run button */
+.run-area{padding:16px;margin-top:auto;border-top:1px solid var(--border)}
+.run-btn{width:100%;padding:11px;background:var(--run);border:none;border-radius:var(--radius-sm);color:#fff;font:14px 600 'Google Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+.run-btn:hover:not(:disabled){background:var(--run-hover)}
+.run-btn:disabled{opacity:.55;cursor:not-allowed}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.run-btn.loading .spinner{display:block}
+.run-btn.loading .run-icon{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Audio output */
+.audio-area{padding:14px 16px;border-bottom:1px solid var(--border)}
+.audio-title{font-size:12px;color:var(--accent);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.audio-dot{width:7px;height:7px;background:#34d399;border-radius:50%;box-shadow:0 0 6px #34d399;animation:blink 1.5s ease infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+audio{width:100%;height:38px;accent-color:var(--run);margin-bottom:8px}
+.audio-btns{display:flex;gap:8px}
+.audio-btn{flex:1;padding:7px 10px;background:var(--tag-bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);font:12px 'Google Sans',sans-serif;cursor:pointer;transition:all .15s;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px}
+.audio-btn:hover{border-color:var(--accent);color:var(--text)}
+
+/* Toast */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:#2a1520;border:1px solid #f87171;border-radius:8px;padding:10px 16px;color:#f87171;font-size:13px;z-index:999;opacity:0;transition:all .25s;pointer-events:none;max-width:440px;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{background:#0e1e18;border-color:#34d399;color:#34d399}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3a3844;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#4a9eff" opacity=".2"/><path d="M8 12a4 4 0 018 0" stroke="#4a9eff" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="14" r="2" fill="#4a9eff"/></svg>
+    AI Studio
+  </div>
+  <div class="nav-item active"><span class="nav-icon">🎮</span> Playground</div>
+  <div class="nav-item"><span class="nav-icon">🔨</span> Build</div>
+  <div class="nav-item"><span class="nav-icon">📊</span> Dashboard</div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-label">History</div>
+  <div class="history-list" id="sidebar-history"></div>
+  <div class="sidebar-bottom">
+    <div class="sidebar-divider"></div>
+    <div class="nav-item"><span class="nav-icon">🔑</span> API Keys</div>
+    <div class="nav-item"><span class="nav-icon">⚙️</span> Settings</div>
+  </div>
+</aside>
+
+<!-- CENTER -->
+<main class="center">
+  <div class="center-header">
+    <button class="tab active" id="tab-single" onclick="switchMode('single')">Single speaker</button>
+    <button class="tab" id="tab-multi" onclick="switchMode('multi')">Multi-speaker</button>
+  </div>
+  <div class="center-body" id="center-body">
+    <!-- Style instructions -->
+    <div class="style-instr">
+      <label>Style instructions</label>
+      <textarea class="style-input" id="style-input" rows="2" placeholder="e.g. Read aloud in a warm, welcoming tone"></textarea>
+    </div>
+    <!-- Single speaker content -->
+    <div id="single-view">
+      <div class="single-block">
+        <div class="single-label">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--sp1);display:inline-block"></span>
+          Speaker 1
+        </div>
+        <textarea class="main-textarea" id="main-text" placeholder="Enter text to be spoken...
+
+Example: Hello! Welcome to our AI text-to-speech demo. This uses OpenRouter API to generate natural-sounding voices."></textarea>
+        <div class="char-bar"><span id="char-count">0 / 5000</span></div>
+      </div>
+    </div>
+    <!-- Multi speaker content -->
+    <div id="multi-view" style="display:none">
+      <div id="dialog-list"></div>
+      <button class="add-dialog-btn" onclick="addDialog()">⊕ Add dialog</button>
+    </div>
+  </div>
+  <!-- Footer templates -->
+  <div class="center-footer">
+    <button class="tpl-btn" onclick="loadTemplate('movie')">🎬 Movie scene script</button>
+    <button class="tpl-btn" onclick="loadTemplate('assistant')">🤖 Audio voice assistant</button>
+    <button class="tpl-btn" onclick="loadTemplate('podcast')">🎙 Podcast transcript</button>
+  </div>
+</main>
+
+<!-- RIGHT PANEL -->
+<aside class="right">
+  <!-- Model info -->
+  <div class="right-model-info">
+    <div class="model-name" id="model-display-name">ElevenLabs Multilingual v2</div>
+    <div class="model-id" id="model-display-id">elevenlabs/text-to-speech-multilingual-v2</div>
+    <div class="model-desc">ElevenLabs hàng đầu về chất lượng giọng nói. Hỗ trợ 32 ngôn ngữ bao gồm tiếng Việt.</div>
+  </div>
+
+  <!-- Model select -->
+  <div class="right-section">
+    <div class="right-section-title">Model</div>
+    <div class="setting-row">
+      <select class="r-select" id="model-select" onchange="onModelChange()">
+        <option value="browser/speech" selected>🌐 Web Speech (Browser) — Miễn phí ∞</option>
+        <option value="gcloud/neural2">Google Cloud TTS Neural2 ⭐</option>
+        <option value="gcloud/wavenet">Google Cloud TTS WaveNet</option>
+        <option value="gemini/gemini-2.5-flash-tts">Gemini 2.5 Flash TTS 🆓</option>
+        <option value="kie/elevenlabs-multilingual-v2">ElevenLabs Multilingual v2 (kie.ai)</option>
+        <option value="kie/elevenlabs-turbo-2-5">ElevenLabs Turbo 2.5 (kie.ai) ⚡</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Voice settings -->
+  <div class="right-section" id="voice-section">
+    <div class="right-section-title">Voice settings</div>
+
+    <!-- Speaker 1 -->
+    <div class="sp-header">
+      <span class="sp-dot sp1" style="width:10px;height:10px;display:inline-block;border-radius:50%;background:var(--sp1)"></span>
+      <span style="font-size:12px;font-weight:600;color:var(--text)">Speaker 1 settings</span>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Voice</div>
+      <select class="r-select" id="voice1-select">
+        <option value="Leda" selected>🌟 Leda</option>
+        <option value="Zephyr">🌬 Zephyr</option>
+        <option value="Puck">🧚 Puck</option>
+        <option value="Charon">⚓ Charon</option>
+        <option value="Kore">🌸 Kore</option>
+        <option value="Fenrir">🐺 Fenrir</option>
+        <option value="Orus">🔱 Orus</option>
+        <option value="Aoede">🎵 Aoede</option>
+      </select>
+      <button onclick="previewGeminiVoice()" style="margin-left:8px;padding:4px 10px;border:none;border-radius:6px;background:var(--run);color:#fff;cursor:pointer;font-size:12px;white-space:nowrap" id="preview-gemini-btn">🔊 Nghe thử</button>
+    </div>
+    <div class="setting-row" id="format-row">
+      <div class="setting-label">Format</div>
+      <select class="r-select" id="format-select">
+        <option value="mp3">MP3</option>
+        <option value="wav">WAV</option>
+        <option value="opus">Opus</option>
+      </select>
+    </div>
+    <div class="setting-row" id="gemini-pause-row" style="margin-top:12px; border-top:1px dashed var(--border); padding-top:12px;">
+      <div class="setting-label">Ép ngừng chuẩn xác sau dấu <span style="color:var(--accent)">...</span> là <span id="gemini-dot-pause-val" style="color:var(--accent)">0.5</span>s</div>
+      <input type="range" id="gemini-dot-pause-range" min="0" max="3" step="0.1" value="0.5" oninput="document.getElementById('gemini-dot-pause-val').textContent=parseFloat(this.value).toFixed(1)" style="width:100%;accent-color:var(--run)">
+    </div>
+
+    <!-- Speaker 2 (multi only) -->
+    <div id="sp2-settings" style="display:none">
+      <hr class="sp-divider"/>
+      <div class="sp-header">
+        <span style="width:10px;height:10px;border-radius:50%;background:var(--sp2);display:inline-block"></span>
+        <span style="font-size:12px;font-weight:600;color:var(--text)">Speaker 2 settings</span>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Voice</div>
+        <select class="r-select" id="voice2-select">
+          <option value="Leda">🌟 Leda</option>
+          <option value="Zephyr">🌬 Zephyr</option>
+          <option value="Puck">🧚 Puck</option>
+          <option value="Charon">⚓ Charon</option>
+          <option value="Kore">🌸 Kore</option>
+          <option value="Fenrir">🐺 Fenrir</option>
+          <option value="Orus">🔱 Orus</option>
+          <option value="Aoede">🎵 Aoede</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Cloud TTS voice settings -->
+  <div class="right-section" id="gcloud-voice-section" style="display:none">
+    <div class="right-section-title">Voice settings</div>
+    <div class="setting-row">
+      <div class="setting-label">Voice</div>
+      <select class="r-select" id="gcloud-voice-select">
+        <option value="en-US-Neural2-A">Neural2-A (Male)</option>
+        <option value="en-US-Neural2-C">Neural2-C (Female)</option>
+        <option value="en-US-Neural2-D">Neural2-D (Male)</option>
+        <option value="en-US-Neural2-E">Neural2-E (Female)</option>
+        <option value="en-US-Neural2-F">Neural2-F (Female)</option>
+        <option value="en-US-Neural2-G">Neural2-G (Female)</option>
+        <option value="en-US-Neural2-H">Neural2-H (Female)</option>
+        <option value="en-US-Neural2-I">Neural2-I (Male)</option>
+        <option value="en-US-Neural2-J">Neural2-J (Male)</option>
+        <option value="en-US-Wavenet-A">Wavenet-A (Male)</option>
+        <option value="en-US-Wavenet-C">Wavenet-C (Female)</option>
+        <option value="en-US-Wavenet-D">Wavenet-D (Male)</option>
+        <option value="en-US-Wavenet-F">Wavenet-F (Female)</option>
+      </select>
+      <button onclick="previewGcloudVoice()" style="margin-left:8px;padding:4px 10px;border:none;border-radius:6px;background:var(--run);color:#fff;cursor:pointer;font-size:12px;white-space:nowrap" id="preview-voice-btn">🔊 Nghe thử</button>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Pause sau dấu ... <span id="dot-pause-val" style="color:var(--accent)">0.5</span>s</div>
+      <input type="range" id="dot-pause-range" min="0.1" max="2" step="0.1" value="0.5" oninput="document.getElementById('dot-pause-val').textContent=parseFloat(this.value).toFixed(1)" style="width:100%;accent-color:var(--run)">
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Pause sau dấu ; <span id="semi-pause-val" style="color:var(--accent)">1.0</span>s</div>
+      <input type="range" id="semi-pause-range" min="0.2" max="3" step="0.1" value="1.0" oninput="document.getElementById('semi-pause-val').textContent=parseFloat(this.value).toFixed(1)" style="width:100%;accent-color:var(--run)">
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Tốc độ đọc <span id="speed-val" style="color:var(--accent)">1.0</span>x</div>
+      <input type="range" id="speed-range" min="0.5" max="2" step="0.1" value="1.0" oninput="document.getElementById('speed-val').textContent=parseFloat(this.value).toFixed(1)" style="width:100%;accent-color:var(--run)">
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Cao độ giọng <span id="pitch-val" style="color:var(--accent)">-2</span> <span style="font-size:10px;color:var(--text3)">(âm = ấm trầm, dương = sáng cao)</span></div>
+      <input type="range" id="pitch-range" min="-10" max="10" step="1" value="-2" oninput="document.getElementById('pitch-val').textContent=this.value" style="width:100%;accent-color:var(--run)">
+    </div>
+  </div>
+
+  <!-- Gemini API Key input -->
+  <div class="right-section" id="gemini-key-section" style="display:none">
+    <div class="right-section-title">Gemini API Key
+      <span><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);text-decoration:none">🔗 Lấy key miễn phí</a></span>
+    </div>
+    <div class="setting-row">
+      <input type="password" id="gemini-key-input" class="r-select" placeholder="AIza..." style="font-family:monospace;font-size:12px" oninput="saveGeminiKey(this.value)">
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px">Gemini 2.5 TTS API key từ Google AI Studio (miễn phí)</div>
+  </div>
+
+  <!-- kie.ai / ElevenLabs voice settings -->
+  <div class="right-section" id="kie-voice-section" style="display:none">
+    <div class="right-section-title">Voice settings</div>
+    <div class="setting-row">
+      <div class="setting-label">Voice</div>
+      <select class="r-select" id="kie-voice-select">
+        <option value="Rachel">Rachel — calm &amp; conversational</option>
+        <option value="Drew">Drew — clear &amp; confident</option>
+        <option value="Clyde">Clyde — warm &amp; engaging</option>
+        <option value="Paul">Paul — authoritative</option>
+        <option value="Domi">Domi — strong &amp; expressive</option>
+        <option value="Dave">Dave — British, casual</option>
+        <option value="Fin">Fin — Irish, friendly</option>
+        <option value="Bella">Bella — soft &amp; pleasant</option>
+        <option value="Antoni">Antoni — natural &amp; pleasant</option>
+        <option value="Thomas">Thomas — calm, gentle</option>
+        <option value="Charlie">Charlie — Australian</option>
+        <option value="George">George — warm, narration</option>
+        <option value="Emily">Emily — calm &amp; clear</option>
+        <option value="Callum">Callum — intense</option>
+        <option value="Patrick">Patrick — confident</option>
+        <option value="Harry">Harry — anxious, whispering</option>
+        <option value="Liam">Liam — articulate</option>
+        <option value="Dorothy">Dorothy — pleasant, British</option>
+        <option value="Josh">Josh — deep, Americas</option>
+        <option value="Arnold">Arnold — crisp, authoritative</option>
+        <option value="Charlotte">Charlotte — seductive, Swedish</option>
+        <option value="Alice">Alice — confident, British</option>
+        <option value="Matilda">Matilda — warm, American</option>
+        <option value="James">James — calm, Australian</option>
+        <option value="Joseph">Joseph — ground TV presenter</option>
+        <option value="Jeremy">Jeremy — American, excited</option>
+        <option value="Michael">Michael — professional</option>
+        <option value="Ethan">Ethan — natural, whisper</option>
+        <option value="Chris">Chris — casual American</option>
+        <option value="Gigi">Gigi — childlish</option>
+        <option value="Freya">Freya — American</option>
+        <option value="Grace">Grace — Southern US, calm</option>
+        <option value="Daniel">Daniel — deep, British news</option>
+        <option value="Lily">Lily — warm, British</option>
+        <option value="Serena">Serena — pleasant, American</option>
+        <option value="Adam">Adam — deep American</option>
+        <option value="Nicole">Nicole — soft, whispering</option>
+        <option value="Bill">Bill — strong, trustworthy</option>
+        <option value="Jessie">Jessie — expressive, US</option>
+        <option value="Sam">Sam — raspy</option>
+        <option value="Glinda">Glinda — warm</option>
+        <option value="Giovanni">Giovanni — Italian, foreigner</option>
+        <option value="Mimi">Mimi — sweet, childish</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Stability <span id="stability-val" style="color:var(--accent)">0.50</span></div>
+      <input type="range" id="stability-range" min="0" max="1" step="0.05" value="0.5" oninput="document.getElementById('stability-val').textContent=parseFloat(this.value).toFixed(2)" style="width:100%;accent-color:var(--run)">
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Similarity Boost <span id="similarity-val" style="color:var(--accent)">0.75</span></div>
+      <input type="range" id="similarity-range" min="0" max="1" step="0.05" value="0.75" oninput="document.getElementById('similarity-val').textContent=parseFloat(this.value).toFixed(2)" style="width:100%;accent-color:var(--run)">
+    </div>
+  </div>
+
+  <!-- Web Speech API voice settings -->
+  <div class="right-section" id="browser-voice-section" style="display:none">
+    <div class="right-section-title">Voice settings</div>
+    <div class="setting-row">
+      <div class="setting-label">Accent</div>
+      <select class="r-select" id="browser-accent-select" onchange="populateBrowserVoices()">
+        <option value="en-GB">🇬🇧 British English</option>
+        <option value="en-US">🇺🇸 American English</option>
+        <option value="en-AU">🇦🇺 Australian English</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Voice</div>
+      <select class="r-select" id="browser-voice-select"></select>
+      <button onclick="previewBrowserVoice()" style="margin-top:6px;padding:4px 10px;border:none;border-radius:6px;background:var(--run);color:#fff;cursor:pointer;font-size:12px;white-space:nowrap" id="preview-browser-btn">🔊 Nghe thử</button>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Tốc độ đọc <span id="browser-speed-val" style="color:var(--accent)">1.0</span>x</div>
+      <input type="range" id="browser-speed-range" min="0.3" max="2" step="0.1" value="1.0" oninput="document.getElementById('browser-speed-val').textContent=parseFloat(this.value).toFixed(1)" style="width:100%;accent-color:var(--run)">
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Cao độ <span id="browser-pitch-val" style="color:var(--accent)">1.0</span></div>
+      <input type="range" id="browser-pitch-range" min="0.5" max="2" step="0.1" value="1.0" oninput="document.getElementById('browser-pitch-val').textContent=parseFloat(this.value).toFixed(1)" style="width:100%;accent-color:var(--run)">
+    </div>
+    <div class="setting-row" style="margin-top:12px; border-top:1px dashed var(--border); padding-top:12px;">
+      <div class="setting-label">Pause sau dấu <span style="color:var(--accent)">...</span> là <span id="browser-dot-pause-val" style="color:var(--accent)">0.5</span>s</div>
+      <input type="range" id="browser-dot-pause-range" min="0" max="3" step="0.1" value="0.5" oninput="document.getElementById('browser-dot-pause-val').textContent=parseFloat(this.value).toFixed(1)" style="width:100%;accent-color:var(--run)">
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">💡 Web Speech API chạy 100% trên trình duyệt, miễn phí không giới hạn, không cần API key. Giọng đọc phụ thuộc vào hệ điều hành.</div>
+  </div>
+
+  <!-- Audio output -->
+  <div class="audio-area" id="audio-area" style="display:none">
+    <div class="audio-title"><span class="audio-dot"></span> Output</div>
+    <audio id="audio-player" controls></audio>
+    <div class="audio-btns">
+      <a id="dl-btn" class="audio-btn" download>⬇ Download</a>
+      <button class="audio-btn" onclick="doRegenerate()">🔄 Regenerate</button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px" id="audio-meta"></div>
+  </div>
+
+  <!-- Run -->
+  <div class="run-area">
+    <button class="run-btn" id="run-btn" onclick="runGenerate()">
+      <div class="spinner"></div>
+      <span class="run-icon">▶</span>
+      Run <span style="opacity:.6;font-size:12px;margin-left:6px">Ctrl ↵</span>
+    </button>
+    <button class="run-btn" id="stop-speech-btn" onclick="stopBrowserSpeech()" style="display:none;margin-top:8px;background:#e53e3e">
+      ⏹ Dừng đọc
+    </button>
+  </div>
+</aside>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const KIE_KEY = '2423867640f91a0c9a806a40b9d58717';
+const GEMINI_KEYS = [
+  'AIzaSyCxx2gEoUJyNlmeMnONbMZIMrIccWZNzRQ',
+  'AIzaSyB5V-Vs3iXDTix45z8pDJg6gaBYSvJ6LrM',
+  'AIzaSyCbNwuGmjYVc3j9BfQbVK9RcI2pUfzUtnA',
+  'AIzaSyBdlmEOipauNtEMwAgvPAgw2Z8SCwJOjz8',
+  'AIzaSyA0xEWySqBGtSWQqucN-yMidIwZcaVZHUI',
+  'AIzaSyDkrDzMtszEbBdqHHNg1TgoE_aURyVYO-w',
+  'AIzaSyA2r0b2dMqn6RqpdIKjYRSnxHwQCkzMLvg',
+  'AIzaSyDXntvVfvHBFC0piuh-WuhHY2vovr2NA-g',
+  'AIzaSyCB9ElHVtlZLorDhcIP78U02P2ODr8J1Hs'
+];
+let geminiKeyIndex = 0;
+function getGeminiKey(){
+  const key = GEMINI_KEYS[geminiKeyIndex % GEMINI_KEYS.length];
+  geminiKeyIndex++;
+  console.log(`[Gemini] Using key #${((geminiKeyIndex-1) % GEMINI_KEYS.length)+1}/${GEMINI_KEYS.length}`);
+  return key;
+}
+const GCLOUD_TTS_KEY = 'AIzaSyD_h4iJ7lLYhM2fms0qM7aLrdrO9dLSv18';
+const MAX_CHARS = 50000;
+let currentMode = 'single';
+let dialogs = [{speaker:1,text:''},{speaker:2,text:''}];
+let history = JSON.parse(localStorage.getItem('as_history')||'[]');
+let blobUrl = null;
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', ()=>{
+  onModelChange(); // initialize voice panel for selected model
+  document.getElementById('main-text').addEventListener('input', updateChar);
+  document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();runGenerate();} });
+  renderSidebarHistory();
+  updateChar();
+});
+
+function updateChar(){
+  const n = document.getElementById('main-text').value.length;
+  const el = document.getElementById('char-count');
+  el.textContent = `${n} / ${MAX_CHARS}`;
+  el.style.color = n > MAX_CHARS*.9 ? '#fbbf24' : 'var(--text3)';
+}
+
+// ── MODE ──
+function switchMode(m){
+  currentMode = m;
+  document.getElementById('tab-single').className = 'tab'+(m==='single'?' active':'');
+  document.getElementById('tab-multi').className = 'tab'+(m==='multi'?' active':'');
+  document.getElementById('single-view').style.display = m==='single'?'block':'none';
+  document.getElementById('multi-view').style.display = m==='multi'?'block':'none';
+  document.getElementById('sp2-settings').style.display = m==='multi'?'block':'none';
+}
+
+
+// ── PREVIEW VOICES ──
+async function previewGeminiVoice(){
+  const btn = document.getElementById('preview-gemini-btn');
+  const voice = document.getElementById('voice1-select').value;
+  btn.textContent = '⏳...';
+  btn.disabled = true;
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${getGeminiKey()}`,
+      { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+        contents:[{parts:[{text: 'Hello! This is a sample of my voice. I can read your English vocabulary clearly and at a steady pace.'}]}],
+        generationConfig:{
+          responseModalities:['AUDIO'],
+          speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName: voice}}}
+        }
+      })}
+    );
+    const json = await res.json();
+    if(!res.ok) throw new Error(json?.error?.message || 'API error');
+    const part = json?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    if(!part?.data) throw new Error('Không có audio data');
+    const rawBytes = Uint8Array.from(atob(part.data), c => c.charCodeAt(0));
+    let sr = 24000;
+    if(part.mimeType){ const m = part.mimeType.match(/rate=(\d+)/); if(m) sr = parseInt(m[1]); }
+    const blob = pcmToWavBlob(rawBytes, sr);
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play();
+    audio.onended = () => URL.revokeObjectURL(url);
+  } catch(e){
+    toast('Lỗi preview: ' + e.message);
+  } finally {
+    btn.textContent = '🔊 Nghe thử';
+    btn.disabled = false;
+  }
+}
+
+// ── PREVIEW GCLOUD VOICE ──
+async function previewGcloudVoice(){
+  const btn = document.getElementById('preview-voice-btn');
+  const voice = document.getElementById('gcloud-voice-select').value;
+  btn.textContent = '⏳...';
+  btn.disabled = true;
+  try {
+    const res = await fetch(
+      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GCLOUD_TTS_KEY}`,
+      { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+        input: { text: 'Hello! This is a sample of my voice. I can read your English vocabulary clearly and at a steady pace.' },
+        voice: { languageCode: voice.slice(0,5), name: voice },
+        audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0 }
+      })}
+    );
+    const json = await res.json();
+    if(!res.ok) throw new Error(json?.error?.message || 'API error');
+    const raw = atob(json.audioContent);
+    const bytes = new Uint8Array(raw.length);
+    for(let i=0;i<raw.length;i++) bytes[i]=raw.charCodeAt(i);
+    const blob = new Blob([bytes],{type:'audio/mpeg'});
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play();
+    audio.onended = () => URL.revokeObjectURL(url);
+  } catch(e){
+    toast('Lỗi preview: ' + e.message);
+  } finally {
+    btn.textContent = '🔊 Nghe thử';
+    btn.disabled = false;
+  }
+}
+
+// ── MODEL CHANGE ──
+function onModelChange(){
+  const m = document.getElementById('model-select').value;
+  const isKie = m.startsWith('kie');
+  const isGemini = m.startsWith('gemini');
+  const isGcloud = m.startsWith('gcloud');
+  const isBrowser = m.startsWith('browser');
+
+  document.getElementById('kie-voice-section').style.display = isKie ? 'block' : 'none';
+  document.getElementById('voice-section').style.display = isGemini ? 'block' : 'none';
+  document.getElementById('gcloud-voice-section').style.display = isGcloud ? 'block' : 'none';
+  document.getElementById('browser-voice-section').style.display = isBrowser ? 'block' : 'none';
+
+  // Khi chọn Browser Speech, populate danh sách giọng
+  if(isBrowser) populateBrowserVoices();
+
+  const names = {
+    'browser/speech':'🌐 Web Speech (Browser)',
+    'gcloud/neural2':'Google Cloud TTS Neural2 ⭐',
+    'gcloud/wavenet':'Google Cloud TTS WaveNet',
+    'kie/elevenlabs-multilingual-v2':'ElevenLabs Multilingual v2',
+    'kie/elevenlabs-turbo-2-5':'ElevenLabs Turbo 2.5 ⚡',
+    'gemini/gemini-2.5-flash-tts':'Gemini 2.5 Flash TTS 🆓'
+  };
+  const ids = {
+    'browser/speech':'window.speechSynthesis',
+    'gcloud/neural2':'cloud-tts/neural2',
+    'gcloud/wavenet':'cloud-tts/wavenet',
+    'kie/elevenlabs-multilingual-v2':'elevenlabs/text-to-speech-multilingual-v2',
+    'kie/elevenlabs-turbo-2-5':'elevenlabs/text-to-speech-turbo-2-5',
+    'gemini/gemini-2.5-flash-tts':'gemini-2.5-flash-preview-tts'
+  };
+  const descs = {
+    'browser/speech':'Web Speech API chạy trực tiếp trên trình duyệt. Miễn phí vĩnh viễn, không giới hạn, không cần API key. Hỗ trợ giọng Anh/Mỹ/Úc.',
+    'gcloud/neural2':'Google Cloud TTS Neural2. Chất lượng cao, SSML pause chính xác, ổn định. Free 1M ký tự/tháng.',
+    'gcloud/wavenet':'Google Cloud TTS WaveNet. Giọng tự nhiên nhất, SSML pause chính xác. Free 1M ký tự/tháng.',
+    'kie/elevenlabs-multilingual-v2':'ElevenLabs hàng đầu về chất lượng giọng nói. Hỗ trợ 32 ngôn ngữ bao gồm tiếng Việt.',
+    'kie/elevenlabs-turbo-2-5':'ElevenLabs Turbo nhanh 2x, tốt cho realtime. Chất lượng cao, hỗ trợ 32 ngôn ngữ.',
+    'gemini/gemini-2.5-flash-tts':'Google Gemini 2.5 Flash TTS. Miễn phí, nhanh, hỗ trợ nhiều giọng.'
+  };
+  document.getElementById('model-display-name').textContent = names[m]||m;
+  document.getElementById('model-display-id').textContent = ids[m]||m;
+  document.querySelector('.model-desc').textContent = descs[m]||'';
+}
+
+// ── WEB SPEECH API ──
+let browserVoices = [];
+function populateBrowserVoices(){
+  const synth = window.speechSynthesis;
+  const accent = document.getElementById('browser-accent-select').value;
+  const allVoices = synth.getVoices();
+  // Lọc giọng theo accent (en-GB, en-US, en-AU)
+  browserVoices = allVoices.filter(v => v.lang === accent || v.lang.startsWith(accent));
+  // Nếu không tìm thấy, thử lọc rộng hơn
+  if(browserVoices.length === 0) browserVoices = allVoices.filter(v => v.lang.startsWith('en'));
+  
+  const sel = document.getElementById('browser-voice-select');
+  sel.innerHTML = browserVoices.map((v,i) => 
+    `<option value="${i}">${v.name} (${v.lang})</option>`
+  ).join('');
+  console.log(`[WebSpeech] Found ${browserVoices.length} voices for ${accent}`);
+}
+// Tải danh sách giọng khi browser sẵn sàng
+if(window.speechSynthesis){
+  speechSynthesis.onvoiceschanged = () => {
+    if(document.getElementById('model-select').value === 'browser/speech') populateBrowserVoices();
+  };
+}
+
+function previewBrowserVoice(){
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  const idx = parseInt(document.getElementById('browser-voice-select').value) || 0;
+  const voice = browserVoices[idx];
+  if(!voice) return toast('Không tìm thấy giọng nào!');
+  const utter = new SpeechSynthesisUtterance('Hello! This is a sample of my voice. I can read English clearly.');
+  utter.voice = voice;
+  utter.rate = parseFloat(document.getElementById('browser-speed-range').value);
+  utter.pitch = parseFloat(document.getElementById('browser-pitch-range').value);
+  synth.speak(utter);
+}
+
+function stopBrowserSpeech(){
+  window.speechSynthesis.cancel();
+  document.getElementById('stop-speech-btn').style.display = 'none';
+  setLoading(false);
+}
+
+// ── TEMPLATES ──
+function loadTemplate(t){
+  const tpls = {
+    movie:`INT. COFFEE SHOP - DAY\n\nSARAH enters nervously, scanning the room. She spots MICHAEL at a corner table.\n\nSARAH\n(whispering)\nI can't believe you actually showed up.\n\nMICHAEL\n(smiling)\nI always keep my promises.`,
+    assistant:`Hello! I'm your AI voice assistant. How can I help you today? I can answer questions, set reminders, play music, or just have a conversation. What would you like to do?`,
+    podcast:`Welcome back to TechTalks, the podcast where we explore the frontiers of artificial intelligence. Today we're diving deep into text-to-speech technology and how it's changing the way we interact with machines.`
+  };
+  if(currentMode==='single') document.getElementById('main-text').value = tpls[t]||'';
+  else if(dialogs.length>0){ dialogs[0].text=tpls[t]||''; renderDialogs(); }
+  updateChar();
+}
+
+// ── MULTI-SPEAKER DIALOGS ──
+function renderDialogs(){
+  const c = document.getElementById('dialog-list');
+  c.innerHTML = dialogs.map((d,i)=>`
+    <div class="speaker-block">
+      <div class="sp-dot sp${d.speaker}" style="font-size:10px;font-weight:700">${d.speaker}</div>
+      <div class="sp-content">
+        <div class="sp-label">
+          Speaker ${d.speaker}<span class="sp-tag">${d.speaker===1?'Voice 1':'Voice 2'}</span>
+          <span style="margin-left:auto;cursor:pointer;color:var(--text3);font-size:16px" onclick="removeDialog(${i})">×</span>
+        </div>
+        <textarea class="sp-textarea" placeholder="Enter dialog for Speaker ${d.speaker}..." oninput="dialogs[${i}].text=this.value">${d.text}</textarea>
+      </div>
+    </div>`).join('');
+}
+function addDialog(){
+  const last = dialogs[dialogs.length-1];
+  dialogs.push({speaker: last?( last.speaker===1?2:1 ):1, text:''});
+  renderDialogs();
+}
+function removeDialog(i){ if(dialogs.length>1){dialogs.splice(i,1);renderDialogs();} }
+
+// ── GENERATE ──
+async function runGenerate(){
+  const model = document.getElementById('model-select').value;
+  const style = document.getElementById('style-input').value.trim();
+  let text = '';
+  if(currentMode==='single'){
+    text = document.getElementById('main-text').value.trim();
+    if(!text) return toast('Nhập text trước đã bạn ơi!');
+  } else {
+    text = dialogs.filter(d=>d.text.trim()).map(d=>`Speaker ${d.speaker}: ${d.text.trim()}`).join('\n\n');
+    if(!text) return toast('Nhập dialog trước đã bạn ơi!');
+  }
+
+  setLoading(true);
+  try {
+    // ── WEB SPEECH API (Browser) ──
+    if(model === 'browser/speech'){
+      const synth = window.speechSynthesis;
+      if(!synth) throw new Error('Trình duyệt không hỗ trợ Web Speech API!');
+      synth.cancel();
+      // Chờ 200ms sau cancel() để Chrome giải phóng engine speech trước khi nói tiếp
+      await new Promise(r => setTimeout(r, 200));
+      
+      const idx = parseInt(document.getElementById('browser-voice-select').value) || 0;
+      const voice = browserVoices[idx];
+      if(!voice) throw new Error('Không tìm thấy giọng nào! Hãy chọn accent khác.');
+      const rate = parseFloat(document.getElementById('browser-speed-range').value);
+      const pitch = parseFloat(document.getElementById('browser-pitch-range').value);
+      const dotPause = parseFloat(document.getElementById('browser-dot-pause-range').value);
+      
+      // Tách text theo dấu '...' nếu có pause > 0
+      const segments = dotPause > 0 ? text.split('...').map(s => s.trim()).filter(s => s.length > 0) : [text];
+      
+      document.getElementById('stop-speech-btn').style.display = 'block';
+      
+      // ── GHI ÂM tab audio bằng getDisplayMedia ──
+      let mediaStream = null;
+      let recorder = null;
+      let audioChunks = [];
+      let isRecording = false;
+      
+      // Luôn thử ghi âm. getDisplayMedia cần HTTPS hoặc localhost.
+      if(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia){
+        try {
+          toast('Chọn tab hiện tại → bấm "Share" để ghi âm!');
+          mediaStream = await navigator.mediaDevices.getDisplayMedia({
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+            video: { width: 1, height: 1 }
+          });
+          mediaStream.getVideoTracks().forEach(t => t.stop());
+          const audioStream = new MediaStream(mediaStream.getAudioTracks());
+          recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm;codecs=opus' });
+          audioChunks = [];
+          recorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
+          recorder.start(100);
+          isRecording = true;
+          await new Promise(r => setTimeout(r, 300));
+        } catch(captureErr) {
+          console.warn('[WebSpeech] Không ghi âm được:', captureErr.message);
+        }
+      }
+      
+      // Nếu không ghi được → hiện hướng dẫn rõ ràng
+      if(!isRecording){
+        const localhostUrl = `http://localhost:${location.port || 8080}${location.pathname}`;
+        toast(`⚠ Không ghi âm được. Hãy truy cập: ${localhostUrl}`);
+        console.log(`[WebSpeech] Để ghi âm, truy cập qua: ${localhostUrl}`);
+      }
+      
+      document.getElementById('audio-meta').textContent = `Web Speech · ${voice.name} · ${segments.length} đoạn` + (isRecording ? ' · 🔴 Đang ghi âm' : '');
+      
+      // Đọc tuần tự từng đoạn
+      for(let i = 0; i < segments.length; i++){
+        const subSegs = segments[i].length > 200 ? splitSpeechSegment(segments[i], 200) : [segments[i]];
+        
+        for(let j = 0; j < subSegs.length; j++){
+          await new Promise((resolve) => {
+            const utter = new SpeechSynthesisUtterance(subSegs[j]);
+            utter.voice = voice;
+            utter.rate = rate;
+            utter.pitch = pitch;
+            utter.onend = () => resolve();
+            utter.onerror = (e) => {
+              console.warn('[WebSpeech] Utterance error:', e.error);
+              resolve();
+            };
+            synth.speak(utter);
+          });
+        }
+        
+        if(i < segments.length - 1 && dotPause > 0){
+          await new Promise(r => setTimeout(r, dotPause * 1000));
+        }
+      }
+      
+      // ── Dừng ghi âm và tạo file tải về ──
+      document.getElementById('stop-speech-btn').style.display = 'none';
+      
+      if(isRecording && recorder && recorder.state !== 'inactive'){
+        await new Promise(r => setTimeout(r, 300));
+        const audioBlob = await new Promise(resolve => {
+          recorder.onstop = () => resolve(new Blob(audioChunks, { type: 'audio/webm;codecs=opus' }));
+          recorder.stop();
+        });
+        mediaStream?.getAudioTracks().forEach(t => t.stop());
+        
+        if(blobUrl) URL.revokeObjectURL(blobUrl);
+        blobUrl = URL.createObjectURL(audioBlob);
+        const player = document.getElementById('audio-player');
+        player.src = blobUrl; player.load();
+        document.getElementById('dl-btn').href = blobUrl;
+        document.getElementById('dl-btn').download = `web-speech-${Date.now()}.webm`;
+        document.getElementById('audio-meta').textContent = `Web Speech · ${voice.name} · ${(audioBlob.size/1024).toFixed(1)} KB · ✅ Đã ghi xong`;
+        document.getElementById('audio-area').style.display = 'block';
+        toast('Đọc xong + Đã ghi âm! Bấm Download để tải.', true);
+      } else {
+        toast('Đọc xong! (Truy cập localhost để ghi file)', true);
+      }
+      
+      saveHistory({text:text.slice(0,80), model, date:new Date().toISOString(), fmt:'webm'});
+      setLoading(false);
+      return;
+    }
+
+    // ── KIE.AI (ElevenLabs) ──
+    if(model.startsWith('kie')){
+      const voiceName = document.getElementById('kie-voice-select').value;
+      const stability = parseFloat(document.getElementById('stability-range').value);
+      const similarity = parseFloat(document.getElementById('similarity-range').value);
+      const kieModel = model==='kie/elevenlabs-turbo-2-5'
+        ? 'elevenlabs/text-to-speech-turbo-2-5'
+        : 'elevenlabs/text-to-speech-multilingual-v2';
+
+      // Step 1: Create task
+      const reqBody = {
+        model: kieModel,
+        input:{
+          text: text,
+          voice_name: voiceName,
+          voice_settings:{ stability, similarity_boost: similarity }
+        }
+      };
+      console.log('[kie.ai] createTask body:', JSON.stringify(reqBody));
+
+      const createRes = await fetch('https://api.kie.ai/api/v1/jobs/createTask',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+KIE_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify(reqBody)
+      });
+      const createJson = await createRes.json();
+      console.log('[kie.ai] createTask response:', JSON.stringify(createJson));
+
+      if(!createRes.ok){
+        throw new Error('kie.ai lỗi '+createRes.status+': '+(createJson?.message||createJson?.error||JSON.stringify(createJson).slice(0,200)));
+      }
+
+      const taskId = createJson?.data?.taskId || createJson?.taskId || createJson?.task_id;
+      if(!taskId) throw new Error('kie.ai: không có taskId. Response: '+JSON.stringify(createJson).slice(0,300));
+
+      // Step 2: Poll for result — show progress in run button
+      const runBtn = document.getElementById('run-btn');
+      let audioUrl = null;
+      for(let i=0;i<40;i++){
+        await new Promise(r=>setTimeout(r,3000));
+        runBtn.querySelector('.run-icon').textContent = `⏳ ${i+1}/40`;
+        const pollRes = await fetch(`https://api.kie.ai/api/v1/jobs/recordInfo?taskId=${taskId}`,{
+          headers:{'Authorization':'Bearer '+KIE_KEY}
+        });
+        const pollJson = await pollRes.json();
+        const rawStatus = (pollJson?.data?.state || pollJson?.data?.status || pollJson?.status || '').toLowerCase();
+        console.log(`[kie.ai] poll #${i+1}: state=${rawStatus}`, JSON.stringify(pollJson?.data).slice(0,200));
+        if(rawStatus==='success'||rawStatus==='completed'||rawStatus==='done'){
+          // Parse resultJson string (kie.ai stores audio URLs as a JSON string)
+          let resultData = {};
+          try{ resultData = JSON.parse(pollJson?.data?.resultJson || '{}'); }catch{}
+          audioUrl = resultData?.resultUrls?.[0]
+            || resultData?.audioUrl
+            || pollJson?.data?.output?.audio_url
+            || pollJson?.data?.audioUrl
+            || pollJson?.data?.audio_url
+            || pollJson?.data?.audio
+            || pollJson?.output?.audio_url;
+          console.log('[kie.ai] audioUrl found:', audioUrl);
+          break;
+        }
+        if(rawStatus==='failed'||rawStatus==='error') {
+          throw new Error('kie.ai: task thất bại. Chi tiết: '+JSON.stringify(pollJson).slice(0,200));
+        }
+      }
+      runBtn.querySelector('.run-icon').textContent = '▶';
+      if(!audioUrl) throw new Error('kie.ai: hết TG chờ (120s). Mở DevTools > Console để xem log chi tiết.');
+
+      // Step 3: Fetch audio binary
+      const audioRes = await fetch(audioUrl);
+      const arrBuf = await audioRes.arrayBuffer();
+      const blob = new Blob([arrBuf],{type:'audio/mpeg'});
+      if(blobUrl) URL.revokeObjectURL(blobUrl);
+      blobUrl = URL.createObjectURL(blob);
+      const player = document.getElementById('audio-player');
+      player.src = blobUrl;
+      player.load();
+      player.play().catch(()=>{});
+      const dl = document.getElementById('dl-btn');
+      dl.href = blobUrl; dl.download = `kie-tts-${Date.now()}.mp3`;
+      document.getElementById('audio-meta').textContent = `ElevenLabs · ${voiceName} · ${(arrBuf.byteLength/1024).toFixed(1)} KB`;
+      document.getElementById('audio-area').style.display='block';
+      saveHistory({text:text.slice(0,80), model, date:new Date().toISOString(), audioUrl, fmt:'mp3'});
+      return;
+    }
+
+    // ── GOOGLE CLOUD TTS (SSML, precise pause) ──
+    if(model.startsWith('gcloud')){
+      const voice = document.getElementById('gcloud-voice-select').value;
+      const dotPause = parseFloat(document.getElementById('dot-pause-range').value);
+      const semiPause = parseFloat(document.getElementById('semi-pause-range').value);
+      const speakRate = parseFloat(document.getElementById('speed-range').value);
+
+      // Convert text to SSML with clear pronunciation
+      function textToSSML(t){
+        // Escape XML special chars first
+        let s = t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        // Replace "..." with period + break (period makes TTS pronounce the word fully)
+        s = s.replace(/\.\.\./g, `. <break time="${dotPause}s"/> `);
+        // Replace ";" with longer break
+        s = s.replace(/;/g, `. <break time="${semiPause}s"/> `);
+        // Replace double newlines with break
+        s = s.replace(/\n\n+/g, ` <break time="${semiPause}s"/> `);
+        // Replace single newlines with short break
+        s = s.replace(/\n/g, ` <break time="${(dotPause * 0.6).toFixed(1)}s"/> `);
+        
+        return `<speak><prosody rate="${speakRate}">${s}</prosody></speak>`;
+      }
+
+      // Cloud TTS has 5000 byte SSML limit, split text first
+      const CHUNK_SIZE = 2000; // chars before SSML conversion
+      const textChunks = splitTextIntoChunks(text, CHUNK_SIZE);
+      console.log(`[Cloud TTS] ${textChunks.length} chunk(s), voice=${voice}, speed=${speakRate}x, dotPause=${dotPause}s, semiPause=${semiPause}s`);
+
+      const runBtn = document.getElementById('run-btn');
+      const audioBuffers = [];
+
+      for(let ci = 0; ci < textChunks.length; ci++){
+        runBtn.querySelector('.run-icon').textContent = `⏳ ${ci+1}/${textChunks.length}`;
+        const ssml = textToSSML(textChunks[ci]);
+        console.log(`[Cloud TTS] Chunk ${ci+1} SSML (${ssml.length} chars):`, ssml.slice(0, 200));
+
+        const body = {
+          input: { ssml: ssml },
+          voice: { languageCode: voice.slice(0, 5), name: voice },
+          audioConfig: {
+            audioEncoding: 'MP3',
+            speakingRate: speakRate,
+            pitch: parseFloat(document.getElementById('pitch-range').value)
+          }
+        };
+
+        const res = await fetch(
+          `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GCLOUD_TTS_KEY}`,
+          { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) }
+        );
+        const json = await res.json();
+        if(!res.ok){
+          const errMsg = json?.error?.message || JSON.stringify(json).slice(0, 300);
+          console.error(`[Cloud TTS] Error:`, errMsg);
+          throw new Error(`Cloud TTS lỗi: ${errMsg}`);
+        }
+
+        // base64 audio content
+        const audioB64 = json.audioContent;
+        if(!audioB64) throw new Error('Cloud TTS: không có audioContent');
+        const raw = atob(audioB64);
+        const bytes = new Uint8Array(raw.length);
+        for(let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        audioBuffers.push(bytes);
+        console.log(`[Cloud TTS] ✓ Chunk ${ci+1}: ${bytes.length} bytes`);
+      }
+
+      runBtn.querySelector('.run-icon').textContent = '▶';
+
+      // Concatenate MP3 chunks (MP3 frames can be concatenated directly)
+      const totalLen = audioBuffers.reduce((s, b) => s + b.length, 0);
+      const fullAudio = new Uint8Array(totalLen);
+      let off = 0;
+      for(const buf of audioBuffers){ fullAudio.set(buf, off); off += buf.length; }
+
+      const blob = new Blob([fullAudio], {type: 'audio/mpeg'});
+      playAudioBlob(blob, `cloud-tts-${Date.now()}.mp3`, `Cloud TTS · ${voice} · ${(blob.size/1024).toFixed(1)} KB`);
+      saveHistory({text:text.slice(0,80), model, date:new Date().toISOString(), fmt:'mp3'});
+      return;
+    }
+
+    // ── GEMINI 2.5 TTS (Google direct API) ──
+    if(model.startsWith('gemini')){
+      const gKey = getGeminiKey();
+
+      const voice = document.getElementById('voice1-select').value;
+      const modelId = 'gemini-2.5-flash-preview-tts';
+
+      // Gemini TTS (LLM) có thể tự tối ưu nhịp độ đọc, tuy nhiên nếu đọc danh sách từ vựng dài có thể bị skip.
+      // Dùng chunk size lớn hơn (800) để giúp nhịp điệu đọc các câu dài tự nhiên hơn, 
+      // tránh việc có quá nhiều khoảng lặng (silence) giữa các chunk nhỏ.
+      const CHUNK_SIZE = 800;
+      const textChunks = splitTextIntoChunks(text, CHUNK_SIZE);
+      console.log(`[Gemini] Splitting into ${textChunks.length} chunk(s)`);
+
+      const runBtn = document.getElementById('run-btn');
+      const allPcmBuffers = [];
+      let detectedSampleRate = 24000;
+
+      for(let ci = 0; ci < textChunks.length; ci++){
+        const chunk = textChunks[ci];
+        
+        // Lấy giá trị ép ngừng (tính bằng giây)
+        const pauseEl = document.getElementById('gemini-dot-pause-range');
+        const dotPauseSecs = pauseEl ? parseFloat(pauseEl.value) : 0;
+        
+        // Tách các cụm từ vựng nếu tìm thấy dấu '...' và user có đòi pause > 0
+        const vocabWords = dotPauseSecs > 0 ? chunk.split('...').map(s => s.trim()).filter(s => s.length > 0) : [chunk];
+
+        // GOM NHÓM: Mỗi nhóm 5 từ vựng = 1 API call (giảm từ ~35 calls xuống ~7 calls)
+        // Free tier Gemini = 10 req/phút/key × 3 key = 30 req/phút. Gom 5 từ/call rất an toàn.
+        const BATCH_SIZE = 5;
+        const batches = [];
+        for(let b = 0; b < vocabWords.length; b += BATCH_SIZE){
+          batches.push(vocabWords.slice(b, b + BATCH_SIZE));
+        }
+        
+        console.log(`[Gemini] Line ${ci+1}: ${vocabWords.length} từ → ${batches.length} batch(es)`);
+
+        for(let bi = 0; bi < batches.length; bi++){
+          const batch = batches[bi];
+          
+          // Nối các từ trong batch bằng dấu chấm để Gemini đọc rõ ràng từng từ  
+          const batchText = batch.join('. ') + '.';
+
+          // Chờ giữa các batch để tránh rate limit (3s = an toàn với 3 key)
+          if(ci > 0 || bi > 0){
+            runBtn.querySelector('.run-icon').textContent = `⏳ Batch ${bi+1}/${batches.length}...`;
+            await new Promise(r => setTimeout(r, 3000));
+          } else {
+            runBtn.querySelector('.run-icon').textContent = `⏳ 1/${batches.length}`;
+          }
+
+          let promptText = batchText;
+          if (style) {
+            promptText = `Instructions for how to read: ${style}\n\nText to read exactly:\n${batchText}`;
+          }
+          
+          const gBody = {
+            contents:[{parts:[{text: promptText}]}],
+            generationConfig:{
+              responseModalities:['AUDIO'],
+              speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName: voice}}}
+            }
+          };
+
+          // Retry logic (thử tối đa 5 lần, chờ 8s giữa các retry vì 429 cần thời gian hồi)
+          let gJson = null;
+          let lastError = null;
+          let chunkSuccess = false;
+          for(let attempt = 0; attempt < 5; attempt++){
+            if(attempt > 0){
+              const waitMs = 8000 + attempt * 4000; // 8s, 12s, 16s, 20s — tăng dần
+              runBtn.querySelector('.run-icon').textContent = `🔄 Thử lại ${attempt}/5 (chờ ${waitMs/1000}s)...`;
+              await new Promise(r => setTimeout(r, waitMs));
+            }
+            try {
+              const gRes = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${getGeminiKey()}`,
+                {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(gBody)}
+              );
+              gJson = await gRes.json();
+              if(!gRes.ok){
+                lastError = gJson?.error?.message || JSON.stringify(gJson).slice(0,200);
+                console.warn(`[Gemini] Batch ${bi+1} attempt ${attempt+1} error: ${lastError}`);
+                gJson = null;
+                continue;
+              }
+              lastError = null;
+              chunkSuccess = true;
+              break; 
+            } catch(fetchErr) {
+              lastError = fetchErr.message;
+              gJson = null;
+            }
+          }
+
+          if(!chunkSuccess || !gJson){
+            throw new Error(`Lỗi batch ${bi+1}: "${batchText.slice(0,30)}...". Chi tiết: ${lastError}`);
+          }
+
+          const part = gJson?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+          if(!part?.data){
+            throw new Error(`Batch ${bi+1} không sinh được audio.`);
+          }
+          console.log(`[Gemini] ✓ Batch ${bi+1}/${batches.length}: ${batch.length} từ, data=${part.data.length}`);
+
+          const rawBytes = Uint8Array.from(atob(part.data), c => c.charCodeAt(0));
+          if(part.mimeType && part.mimeType.includes('L16')){
+            const rateMatch = part.mimeType.match(/rate=(\d+)/);
+            if(rateMatch) detectedSampleRate = parseInt(rateMatch[1]);
+          }
+
+          // Push audio PCM
+          allPcmBuffers.push(rawBytes);
+
+          // Chèn khoảng lặng (Silence) sau mỗi batch (trừ batch cuối cùng)
+          if(bi < batches.length - 1 && dotPauseSecs > 0) {
+            const numSamples = Math.floor(detectedSampleRate * dotPauseSecs);
+            const silenceBytes = new Uint8Array(numSamples * 2); // 16-bit PCM = 2 bytes/sample, giá trị 0 = im lặng
+            allPcmBuffers.push(silenceBytes);
+          }
+        } // end loop batches
+      } // end loop textChunks
+
+      runBtn.querySelector('.run-icon').textContent = '▶';
+
+      if(allPcmBuffers.length === 0){
+        throw new Error('Tất cả chunks đều lỗi. Vui lòng thử lại sau.');
+      }
+
+
+
+      // Concatenate all PCM buffers
+      const totalLength = allPcmBuffers.reduce((sum, buf) => sum + buf.length, 0);
+      const fullPcm = new Uint8Array(totalLength);
+      let offset = 0;
+      for(const buf of allPcmBuffers){
+        fullPcm.set(buf, offset);
+        offset += buf.length;
+      }
+
+      // Build WAV from PCM
+      const blob = pcmToWavBlob(fullPcm, detectedSampleRate);
+
+      playAudioBlob(blob, `gemini-tts-${Date.now()}.wav`, `Gemini · ${voice} · ${(blob.size/1024).toFixed(1)} KB`);
+      saveHistory({text:text.slice(0,80), model, date:new Date().toISOString(), fmt:'wav'});
+      return;
+    }
+
+    throw new Error('Model không hợp lệ!');
+  } catch(e){
+    console.error(e);
+    toast(e.message||'Lỗi khi gọi API.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function playAudioBlob(blob, filename, meta){
+  if(blobUrl) URL.revokeObjectURL(blobUrl);
+  blobUrl = URL.createObjectURL(blob);
+  const player = document.getElementById('audio-player');
+  player.src = blobUrl; player.load(); player.play().catch(()=>{});
+  const dl = document.getElementById('dl-btn');
+  dl.href = blobUrl; dl.download = filename;
+  document.getElementById('audio-meta').textContent = meta;
+  document.getElementById('audio-area').style.display='block';
+}
+
+function doRegenerate(){ runGenerate(); }
+
+function setLoading(on){
+  const btn = document.getElementById('run-btn');
+  btn.disabled = on;
+  btn.classList.toggle('loading', on);
+}
+
+// ── HISTORY ──
+function saveHistory(item){
+  history.unshift(item);
+  if(history.length>20) history=history.slice(0,20);
+  try{localStorage.setItem('as_history',JSON.stringify(history.map(h=>({text:h.text,model:h.model,date:h.date,audioData:h.audioData,fmt:h.fmt}))));}catch{}
+  renderSidebarHistory();
+}
+
+function renderSidebarHistory(){
+  const el = document.getElementById('sidebar-history');
+  if(!history.length){el.innerHTML='';return;}
+  el.innerHTML = history.slice(0,8).map((h,i)=>`<div class="history-item" onclick="playHistory(${i})" title="${escHtml(h.text)}">${escHtml(h.text||'Untitled')}</div>`).join('');
+}
+
+function playHistory(i){
+  const h = history[i];
+  if(!h?.audioData) return;
+  const mime = {mp3:'audio/mpeg',wav:'audio/wav',opus:'audio/ogg;codecs=opus',flac:'audio/flac'}[h.fmt||'mp3']||'audio/mpeg';
+  const bytes = Uint8Array.from(atob(h.audioData),c=>c.charCodeAt(0));
+  const blob = new Blob([bytes],{type:mime});
+  if(blobUrl) URL.revokeObjectURL(blobUrl);
+  blobUrl = URL.createObjectURL(blob);
+  const player = document.getElementById('audio-player');
+  player.src = blobUrl;
+  player.load();
+  player.play().catch(()=>{});
+  document.getElementById('audio-area').style.display='block';
+  const kb=(blob.size/1024).toFixed(1);
+  document.getElementById('audio-meta').textContent=`${(h.fmt||'mp3').toUpperCase()} · ${kb} KB`;
+  document.getElementById('dl-btn').href=blobUrl;
+  document.getElementById('dl-btn').download=`tts-${i}.${h.fmt||'mp3'}`;
+}
+
+// ── TOAST ──
+function toast(msg,ok=false){
+  const t=document.getElementById('toast');
+  t.textContent=(ok?'✓ ':'⚠ ')+msg;
+  t.className='show'+(ok?' ok':'');
+  setTimeout(()=>t.className='',4000);
+}
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── TEXT CHUNKING ──
+function splitTextIntoChunks(text, maxLen){
+  // Cắt văn bản theo TỪNG DÒNG (người dùng tự quyết định độ dài bằng nút Enter).
+  // Việc này giúp "refresh" lại settings, giữ ngữ khí chuẩn và tuyệt đối không cắt vụn các câu đã viết liền mạch trên cùng 1 hàng.
+  
+  const chunks = [];
+  let remaining = text.trim();
+  
+  while(remaining.length > 0){
+    let splitAt = -1;
+    
+    // Chỉ dò tìm dấu xuống dòng \n
+    for(let i = 0; i < remaining.length; i++){
+      const ch = remaining[i];
+      if(ch === '\n'){
+        // Bắt các dấu xuống dòng dư thừa (Enter nhiều lần)
+        let j = i + 1;
+        while(j < remaining.length && (remaining[j] === '\n' || remaining[j] === '\r')) {
+          j++;
+        }
+        splitAt = j;
+        break;
+      }
+    }
+    
+    if(splitAt === -1){
+      splitAt = remaining.length;
+    }
+    
+    const chunkContent = remaining.slice(0, splitAt).trim();
+    if (chunkContent.length > 0) chunks.push(chunkContent);
+    remaining = remaining.slice(splitAt).trim();
+  }
+  
+  return chunks;
+}
+
+// ── SPEECH SEGMENT SPLITTER (cho Web Speech API) ──
+// Chrome có bug: SpeechSynthesis sẽ bị "interrupted" nếu utterance quá dài (~15 giây).
+// Hàm này chia nhỏ text dài thành các đoạn ngắn tại vị trí dấu câu hoặc khoảng trắng.
+function splitSpeechSegment(text, maxLen){
+  const parts = [];
+  let remaining = text;
+  while(remaining.length > 0){
+    if(remaining.length <= maxLen){ parts.push(remaining); break; }
+    let splitAt = -1;
+    // Dò lùi tìm dấu câu
+    for(let i = maxLen; i >= 0; i--){
+      const ch = remaining[i];
+      if(ch === '.' || ch === ',' || ch === ';' || ch === '!' || ch === '?'){
+        splitAt = i + 1; break;
+      }
+    }
+    // Dò lùi tìm khoảng trắng
+    if(splitAt === -1){
+      for(let i = maxLen; i >= 0; i--){
+        if(remaining[i] === ' '){ splitAt = i + 1; break; }
+      }
+    }
+    if(splitAt === -1) splitAt = maxLen;
+    parts.push(remaining.slice(0, splitAt).trim());
+    remaining = remaining.slice(splitAt).trim();
+  }
+  return parts.filter(p => p.length > 0);
+}
+
+// ── PCM → WAV ──
+function pcmToWavBlob(pcmBytes, sampleRate){
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const dataSize = pcmBytes.length;
+  const header = new ArrayBuffer(44);
+  const v = new DataView(header);
+  v.setUint32(0, 0x52494646, false); // "RIFF"
+  v.setUint32(4, 36 + dataSize, true);
+  v.setUint32(8, 0x57415645, false); // "WAVE"
+  v.setUint32(12, 0x666d7420, false); // "fmt "
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); // PCM
+  v.setUint16(22, numChannels, true);
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, byteRate, true);
+  v.setUint16(32, blockAlign, true);
+  v.setUint16(34, bitsPerSample, true);
+  v.setUint32(36, 0x64617461, false); // "data"
+  v.setUint32(40, dataSize, true);
+  return new Blob([header, pcmBytes], {type:'audio/wav'});
+}
+</script>
+</body>
+</html>

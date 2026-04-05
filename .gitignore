@@ -1,0 +1,10 @@
+node_modules/
+server.js
+test_gemini.js
+test_gemini_ssml.js
+test_gemini_*.wav
+package.json
+package-lock.json
+cert.pem
+key.pem
+*.log

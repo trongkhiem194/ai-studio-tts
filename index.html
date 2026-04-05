@@ -757,10 +757,12 @@ async function runGenerate(){
       // Luôn thử ghi âm. getDisplayMedia cần HTTPS hoặc localhost.
       if(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia){
         try {
-          toast('Chọn tab hiện tại → bấm "Share" để ghi âm!');
+          toast('Bấm "Chia sẻ" để ghi âm giọng đọc!');
           mediaStream = await navigator.mediaDevices.getDisplayMedia({
             audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-            video: { width: 1, height: 1 }
+            video: { width: 1, height: 1 },
+            preferCurrentTab: true,
+            selfBrowserSurface: 'include'
           });
           mediaStream.getVideoTracks().forEach(t => t.stop());
           const audioStream = new MediaStream(mediaStream.getAudioTracks());

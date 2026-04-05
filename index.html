@@ -733,7 +733,6 @@ async function runGenerate(){
       const synth = window.speechSynthesis;
       if(!synth) throw new Error('Trình duyệt không hỗ trợ Web Speech API!');
       synth.cancel();
-      // Chờ 200ms sau cancel() để Chrome giải phóng engine speech trước khi nói tiếp
       await new Promise(r => setTimeout(r, 200));
       
       const idx = parseInt(document.getElementById('browser-voice-select').value) || 0;
@@ -743,67 +742,63 @@ async function runGenerate(){
       const pitch = parseFloat(document.getElementById('browser-pitch-range').value);
       const dotPause = parseFloat(document.getElementById('browser-dot-pause-range').value);
       
-      // Tách text theo dấu '...' nếu có pause > 0
       const segments = dotPause > 0 ? text.split('...').map(s => s.trim()).filter(s => s.length > 0) : [text];
       
       document.getElementById('stop-speech-btn').style.display = 'block';
+      _speechAborted = false;
       
-      // ── GHI ÂM tab audio bằng getDisplayMedia ──
+      // ── GHI ÂM system audio bằng Screen Capture ──
       let mediaStream = null;
       let recorder = null;
       let audioChunks = [];
       let isRecording = false;
       
-      // Luôn thử ghi âm. getDisplayMedia cần HTTPS hoặc localhost.
       if(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia){
         try {
-          toast('Bấm "Chia sẻ" để ghi âm giọng đọc!');
+          toast('Chọn "Toàn màn hình" → bật "Chia sẻ âm thanh hệ thống" → Chia sẻ!');
           mediaStream = await navigator.mediaDevices.getDisplayMedia({
             audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-            video: { width: 1, height: 1 },
-            preferCurrentTab: true,
-            selfBrowserSurface: 'include'
+            video: true,
+            systemAudio: 'include'
           });
+          // Tắt video track ngay (chỉ cần audio)
           mediaStream.getVideoTracks().forEach(t => t.stop());
-          const audioStream = new MediaStream(mediaStream.getAudioTracks());
-          recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm;codecs=opus' });
-          audioChunks = [];
-          recorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
-          recorder.start(100);
-          isRecording = true;
-          await new Promise(r => setTimeout(r, 300));
+          
+          const audioTracks = mediaStream.getAudioTracks();
+          if(audioTracks.length > 0){
+            const audioStream = new MediaStream(audioTracks);
+            recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm;codecs=opus' });
+            audioChunks = [];
+            recorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
+            recorder.start(100);
+            isRecording = true;
+            await new Promise(r => setTimeout(r, 300));
+            console.log('[WebSpeech] 🔴 Recording system audio...');
+          } else {
+            toast('⚠ Không có audio track. Hãy bật "Chia sẻ âm thanh hệ thống"!');
+          }
         } catch(captureErr) {
-          console.warn('[WebSpeech] Không ghi âm được:', captureErr.message);
+          console.warn('[WebSpeech] Capture error:', captureErr.message);
+          toast('Bỏ qua ghi âm, chỉ đọc qua loa.');
         }
       }
       
-      // Nếu không ghi được → hiện hướng dẫn rõ ràng
-      if(!isRecording){
-        const localhostUrl = `http://localhost:${location.port || 8080}${location.pathname}`;
-        toast(`⚠ Không ghi âm được. Hãy truy cập: ${localhostUrl}`);
-        console.log(`[WebSpeech] Để ghi âm, truy cập qua: ${localhostUrl}`);
-      }
-      
       document.getElementById('audio-meta').textContent = `Web Speech · ${voice.name} · ${segments.length} đoạn` + (isRecording ? ' · 🔴 Đang ghi âm' : '');
-      _speechAborted = false; // Reset cờ dừng
       
-      // Đọc tuần tự từng đoạn
+      // ── Đọc realtime qua loa ──
       for(let i = 0; i < segments.length; i++){
-        if(_speechAborted) break; // ← DỪNG ngay khi bấm Stop
+        if(_speechAborted) break;
         const subSegs = segments[i].length > 200 ? splitSpeechSegment(segments[i], 200) : [segments[i]];
         
         for(let j = 0; j < subSegs.length; j++){
-          if(_speechAborted) break; // ← DỪNG ngay khi bấm Stop
+          if(_speechAborted) break;
           await new Promise((resolve) => {
             const utter = new SpeechSynthesisUtterance(subSegs[j]);
             utter.voice = voice;
             utter.rate = rate;
             utter.pitch = pitch;
             utter.onend = () => resolve();
-            utter.onerror = (e) => {
-              console.warn('[WebSpeech] Utterance error:', e.error);
-              resolve();
-            };
+            utter.onerror = () => resolve();
             synth.speak(utter);
           });
         }
@@ -814,42 +809,29 @@ async function runGenerate(){
         }
       }
       
-      // ── Dừng ghi âm và tạo file tải về ──
       document.getElementById('stop-speech-btn').style.display = 'none';
       
-      if(isRecording){
-        await new Promise(r => setTimeout(r, 500)); // Chờ buffer cuối
-        
-        // Dừng recorder nếu còn đang chạy
-        try {
-          if(recorder && recorder.state === 'recording') recorder.stop();
-        } catch(e){ console.warn('Recorder stop error:', e); }
-        
-        // Chờ thêm để ondataavailable kịp push chunks cuối
+      // ── Dừng ghi âm và tạo file ──
+      if(isRecording && !_speechAborted){
         await new Promise(r => setTimeout(r, 500));
-        
-        // Dọn dẹp stream
+        try { if(recorder && recorder.state === 'recording') recorder.stop(); } catch(e){}
+        await new Promise(r => setTimeout(r, 500));
         try { mediaStream?.getTracks().forEach(t => t.stop()); } catch(e){}
         
-        console.log(`[WebSpeech] Có ${audioChunks.length} chunks, tổng size: ${audioChunks.reduce((s,c)=>s+c.size,0)} bytes`);
+        console.log(`[WebSpeech] ${audioChunks.length} chunks, ${audioChunks.reduce((s,c)=>s+c.size,0)} bytes`);
         
         if(audioChunks.length > 0){
           const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-          
-          if(blobUrl) URL.revokeObjectURL(blobUrl);
-          blobUrl = URL.createObjectURL(audioBlob);
-          const player = document.getElementById('audio-player');
-          player.src = blobUrl; player.load();
-          document.getElementById('dl-btn').href = blobUrl;
-          document.getElementById('dl-btn').download = `web-speech-${Date.now()}.webm`;
-          document.getElementById('audio-meta').textContent = `Web Speech · ${voice.name} · ${(audioBlob.size/1024).toFixed(1)} KB · ✅ Đã ghi xong`;
-          document.getElementById('audio-area').style.display = 'block';
-          toast('Đọc xong + Đã ghi âm! Bấm Download để tải.', true);
+          playAudioBlob(audioBlob, `web-speech-${Date.now()}.webm`, `Web Speech · ${voice.name} · ${(audioBlob.size/1024).toFixed(1)} KB · ✅ Ghi xong`);
+          toast('✅ Đọc xong + Đã ghi âm! Bấm Download để tải.', true);
         } else {
-          toast('⚠ Ghi âm không thu được dữ liệu. SpeechSynthesis có thể không đi qua tab audio.', false);
+          toast('Đọc xong nhưng không thu được audio.', false);
         }
       } else {
-        toast('Đọc xong! (Cần HTTPS hoặc localhost để ghi file)', true);
+        // Dọn dẹp nếu bị abort
+        try { if(recorder && recorder.state === 'recording') recorder.stop(); } catch(e){}
+        try { mediaStream?.getTracks().forEach(t => t.stop()); } catch(e){}
+        toast(_speechAborted ? 'Đã dừng đọc.' : 'Đọc xong!', true);
       }
       
       saveHistory({text:text.slice(0,80), model, date:new Date().toISOString(), fmt:'webm'});

@@ -643,6 +643,11 @@ function populateBrowserVoices(){
   sel.innerHTML = browserVoices.map((v,i) => 
     `<option value="${i}">${v.name} (${v.lang})</option>`
   ).join('');
+  
+  // Tự động chọn "Google US English" nếu có
+  const preferredIdx = browserVoices.findIndex(v => v.name === 'Google US English');
+  if(preferredIdx !== -1) sel.value = preferredIdx;
+  
   console.log(`[WebSpeech] Found ${browserVoices.length} voices for ${accent}`);
 }
 // Tải danh sách giọng khi browser sẵn sàng

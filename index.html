@@ -803,25 +803,39 @@ async function runGenerate(){
       // ── Dừng ghi âm và tạo file tải về ──
       document.getElementById('stop-speech-btn').style.display = 'none';
       
-      if(isRecording && recorder && recorder.state !== 'inactive'){
-        await new Promise(r => setTimeout(r, 300));
-        const audioBlob = await new Promise(resolve => {
-          recorder.onstop = () => resolve(new Blob(audioChunks, { type: 'audio/webm;codecs=opus' }));
-          recorder.stop();
-        });
-        mediaStream?.getAudioTracks().forEach(t => t.stop());
+      if(isRecording){
+        await new Promise(r => setTimeout(r, 500)); // Chờ buffer cuối
         
-        if(blobUrl) URL.revokeObjectURL(blobUrl);
-        blobUrl = URL.createObjectURL(audioBlob);
-        const player = document.getElementById('audio-player');
-        player.src = blobUrl; player.load();
-        document.getElementById('dl-btn').href = blobUrl;
-        document.getElementById('dl-btn').download = `web-speech-${Date.now()}.webm`;
-        document.getElementById('audio-meta').textContent = `Web Speech · ${voice.name} · ${(audioBlob.size/1024).toFixed(1)} KB · ✅ Đã ghi xong`;
-        document.getElementById('audio-area').style.display = 'block';
-        toast('Đọc xong + Đã ghi âm! Bấm Download để tải.', true);
+        // Dừng recorder nếu còn đang chạy
+        try {
+          if(recorder && recorder.state === 'recording') recorder.stop();
+        } catch(e){ console.warn('Recorder stop error:', e); }
+        
+        // Chờ thêm để ondataavailable kịp push chunks cuối
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Dọn dẹp stream
+        try { mediaStream?.getTracks().forEach(t => t.stop()); } catch(e){}
+        
+        console.log(`[WebSpeech] Có ${audioChunks.length} chunks, tổng size: ${audioChunks.reduce((s,c)=>s+c.size,0)} bytes`);
+        
+        if(audioChunks.length > 0){
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+          
+          if(blobUrl) URL.revokeObjectURL(blobUrl);
+          blobUrl = URL.createObjectURL(audioBlob);
+          const player = document.getElementById('audio-player');
+          player.src = blobUrl; player.load();
+          document.getElementById('dl-btn').href = blobUrl;
+          document.getElementById('dl-btn').download = `web-speech-${Date.now()}.webm`;
+          document.getElementById('audio-meta').textContent = `Web Speech · ${voice.name} · ${(audioBlob.size/1024).toFixed(1)} KB · ✅ Đã ghi xong`;
+          document.getElementById('audio-area').style.display = 'block';
+          toast('Đọc xong + Đã ghi âm! Bấm Download để tải.', true);
+        } else {
+          toast('⚠ Ghi âm không thu được dữ liệu. SpeechSynthesis có thể không đi qua tab audio.', false);
+        }
       } else {
-        toast('Đọc xong! (Truy cập localhost để ghi file)', true);
+        toast('Đọc xong! (Cần HTTPS hoặc localhost để ghi file)', true);
       }
       
       saveHistory({text:text.slice(0,80), model, date:new Date().toISOString(), fmt:'webm'});

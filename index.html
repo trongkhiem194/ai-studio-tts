@@ -670,10 +670,13 @@ function previewBrowserVoice(){
   synth.speak(utter);
 }
 
+let _speechAborted = false;
 function stopBrowserSpeech(){
+  _speechAborted = true;
   window.speechSynthesis.cancel();
   document.getElementById('stop-speech-btn').style.display = 'none';
   setLoading(false);
+  toast('Đã dừng đọc.', true);
 }
 
 // ── TEMPLATES ──
@@ -780,12 +783,15 @@ async function runGenerate(){
       }
       
       document.getElementById('audio-meta').textContent = `Web Speech · ${voice.name} · ${segments.length} đoạn` + (isRecording ? ' · 🔴 Đang ghi âm' : '');
+      _speechAborted = false; // Reset cờ dừng
       
       // Đọc tuần tự từng đoạn
       for(let i = 0; i < segments.length; i++){
+        if(_speechAborted) break; // ← DỪNG ngay khi bấm Stop
         const subSegs = segments[i].length > 200 ? splitSpeechSegment(segments[i], 200) : [segments[i]];
         
         for(let j = 0; j < subSegs.length; j++){
+          if(_speechAborted) break; // ← DỪNG ngay khi bấm Stop
           await new Promise((resolve) => {
             const utter = new SpeechSynthesisUtterance(subSegs[j]);
             utter.voice = voice;
@@ -800,6 +806,7 @@ async function runGenerate(){
           });
         }
         
+        if(_speechAborted) break;
         if(i < segments.length - 1 && dotPause > 0){
           await new Promise(r => setTimeout(r, dotPause * 1000));
         }
